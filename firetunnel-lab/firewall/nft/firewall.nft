@@ -1,0 +1,72 @@
+#!/usr/sbin/nft -f
+# MODE: firewall  (Scenario 2 - Firewall-Only Protection)
+# Default-deny, stateful, NAT + single DMZ port-forward, guest isolation, DMZ->LAN blocked.
+include "/run/lab/ifaces.nft"
+flush ruleset
+
+define LAN_NET      = 10.10.0.0/24
+define GUEST_NET    = 10.20.0.0/24
+define DMZ_NET      = 10.30.0.0/24
+define WAN_NET      = 203.0.113.0/24
+define INTERNAL_SRV = 10.10.0.10
+define DMZ_SRV      = 10.30.0.10
+define PUBLIC_IP    = 203.0.113.1
+
+table inet fw {
+    chain input {
+        type filter hook input priority filter; policy drop;
+        iif lo accept
+        ct state established,related accept
+        ct state invalid counter drop comment "invalid-state"
+        # Address hardening: packets arriving on WAN must be addressed to the public IP only
+        iifname $WAN ip daddr != $PUBLIC_IP counter drop comment "wan-nonpublic-addr"
+        icmp type echo-request counter accept comment "ping-gateway"
+        log prefix "FW-DROP input " counter drop comment "input-default-deny"
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        ct state established,related counter accept comment "established"
+        ct state invalid counter drop comment "invalid-state"
+
+        # ---- Trusted/Internal (LAN) ----
+        iifname $LAN oifname $DMZ ip daddr $DMZ_SRV tcp dport 80 counter accept comment "lan-to-dmz-web"
+        iifname $LAN oifname $DMZ ip daddr $DMZ_SRV tcp dport 5201 counter accept comment "lan-to-dmz-iperf3"
+        iifname $LAN oifname $DMZ meta l4proto icmp counter accept comment "lan-to-dmz-icmp"
+        iifname $LAN oifname $WAN counter accept comment "lan-to-wan"
+
+        # ---- Guest/Untrusted ----
+        iifname $GUEST oifname $WAN counter accept comment "guest-to-wan"
+        iifname $GUEST oifname $LAN log prefix "FW-DROP guest-to-lan " counter drop comment "guest-isolation"
+        iifname $GUEST oifname $DMZ log prefix "FW-DROP guest-to-dmz " counter drop comment "guest-no-dmz"
+
+        # ---- External/Test (WAN) ----
+        # only the approved DMZ service, and only through the port-forward (ct status dnat)
+        iifname $WAN oifname $DMZ ip daddr $DMZ_SRV tcp dport 80 ct status dnat log prefix "FW-ALLOW ext-to-dmz-web " counter accept comment "ext-to-dmz-web"
+        iifname $WAN oifname $LAN log prefix "FW-DROP ext-to-lan " counter drop comment "ext-to-lan-blocked"
+        iifname $WAN oifname $DMZ log prefix "FW-DROP ext-to-dmz " counter drop comment "ext-to-dmz-other-blocked"
+
+        # ---- DMZ ----
+        iifname $DMZ oifname $LAN log prefix "FW-DROP dmz-to-lan " counter drop comment "dmz-to-lan-blocked"
+        iifname $DMZ oifname $WAN counter accept comment "dmz-to-wan"
+
+        log prefix "FW-DROP forward " counter drop comment "forward-default-deny"
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+    }
+}
+
+table ip nat {
+    chain prerouting {
+        type nat hook prerouting priority dstnat;
+        # Inbound port-forward: public IP tcp/80 -> DMZ web server
+        iifname $WAN ip daddr 203.0.113.1 tcp dport 80 counter dnat to 10.30.0.10:80 comment "portfwd-dmz-web"
+    }
+    chain postrouting {
+        type nat hook postrouting priority srcnat;
+        # Outbound NAT for all private zones leaving via WAN
+        oifname $WAN ip saddr { 10.10.0.0/24, 10.20.0.0/24, 10.30.0.0/24 } counter masquerade comment "outbound-nat"
+    }
+}

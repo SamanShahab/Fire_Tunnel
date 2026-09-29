@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FireTunnel – Control Panel</title>
+<style>
+  :root{--bg:#0f141b;--panel:#161d27;--panel2:#1c2531;--line:#263241;--text:#e6edf3;--muted:#8b98a8;--ok:#2ecc71;--bad:#ff5c5c;--warn:#f5b342;--acc:#4ea1ff;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+  header{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
+  header h1{font-size:17px;margin:0;letter-spacing:.3px;white-space:nowrap}header h1 span{color:var(--acc)}
+  .badge{padding:3px 10px;border-radius:999px;font-weight:600;font-size:12px;border:1px solid var(--line);background:var(--panel2)}
+  .badge.mode{background:#0e3a5e;border-color:#1f5f93;color:#bfe0ff;text-transform:uppercase}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .chip{font-size:11px;padding:2px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+  .chip.running{border-color:#1f6b3a;color:#9be3b3}.chip.down{border-color:#7a2a2a;color:#ffb3b3}
+  main{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px;padding:14px 18px}
+  main>*{min-width:0}  /* grid items must be allowed to shrink below their widest table/pre */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .panel h2{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .scen{display:grid;gap:8px}
+  .scen button{text-align:left;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer}
+  .scen button b{display:block}.scen button small{color:var(--muted)}
+  .scen button.active{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .actions button,.btn{padding:8px 10px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer;font-size:12.5px}
+  .actions button:hover,.btn:hover{border-color:var(--acc)}.actions button.primary{background:#0e3a5e;border-color:#1f5f93}
+  .actions button.danger{border-color:#7a2a2a}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  #console{font-family:var(--mono);font-size:12px;background:#0a0e13;border:1px solid var(--line);border-radius:8px;padding:8px;height:280px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  .jobhead{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--muted)}
+  .spin{width:10px;height:10px;border-radius:50%;border:2px solid var(--acc);border-top-color:transparent;animation:r 1s linear infinite;display:inline-block}@keyframes r{to{transform:rotate(360deg)}}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto;scrollbar-width:thin}
+  .tabs button{background:none;border:none;color:var(--muted);padding:8px 12px;cursor:pointer;border-bottom:2px solid transparent;font-size:13px;white-space:nowrap;flex:none}
+  .tabs button.active{color:var(--text);border-bottom-color:var(--acc)}
+  .tab{display:none}.tab.active{display:block}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-weight:600}
+  td.ok{color:var(--ok)}td.bad{color:var(--bad)}td.mono,.mono{font-family:var(--mono);font-size:12px}
+  pre{font-family:var(--mono);font-size:12px;background:#0a0e13;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;max-height:460px;white-space:pre-wrap}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.grow{flex:1}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .muted{color:var(--muted)}.small{font-size:12px}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}
+  .pill.ok{background:#123d25;color:#8ff0b0}.pill.bad{background:#4a1a1a;color:#ffb0b0}.pill.warn{background:#4a3a12;color:#ffd98a}
+  select,input{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+  svg text{font-family:system-ui;font-size:11px;fill:var(--text)}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+  .kpi div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px}.kpi b{font-size:18px;display:block}
+  .evlist{display:flex;gap:6px;flex-wrap:wrap}.evlist button{font-size:11px;padding:3px 8px}
+  .kpi.kpi3{grid-template-columns:repeat(3,minmax(0,1fr))}.kpi small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+  .acc td.cell{text-align:center;white-space:nowrap}.acc th.cell{text-align:center}
+  .acc tr.grp td{background:var(--panel2);color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+  .acc td:first-child,.acc th:first-child{position:sticky;left:0;background:var(--panel);z-index:1;min-width:170px}
+  .acc tr.grp td:first-child{background:var(--panel2)}
+  .acc .lbl-short{display:none}
+  .pill.na{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:400}
+  .scroll-x{overflow-x:auto}.grid2>*,.panel{min-width:0}  /* tables scroll inside their panel, never widen the page */
+  @media(max-width:1000px){main{grid-template-columns:minmax(0,1fr)}}
+  @media(max-width:760px){
+    header{padding:10px 16px;position:static}   /* 3-row header would eat the phone screen if sticky */
+    .chips{margin-left:0;width:100%}
+    main{padding:12px 16px;gap:12px}
+    .grid2{grid-template-columns:minmax(0,1fr)}
+    .kpi{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .kpi.kpi3{grid-template-columns:minmax(0,1fr)}.kpi.kpi3 b{font-size:15px}
+    /* access matrix: all three scenario columns fit on a phone without sideways scrolling */
+    .acc{font-size:12px}.acc td,.acc th{padding:5px 3px}
+    .acc td:first-child,.acc th:first-child{min-width:0;width:36%;padding-left:0;overflow-wrap:anywhere}
+    .acc td.cell .pill{font-size:10px;padding:1px 5px}
+    .acc .lbl-long{display:none}.acc .lbl-short{display:inline}
+    #topo{min-width:620px}                          /* keep node labels legible; wrapper scrolls */
+    #console{height:220px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>FireTunnel</span> Control Panel</h1>
+  <span class="badge">mode</span><span id="mode" class="badge mode">…</span>
+  <span id="pki" class="badge">PKI: ?</span>
+  <div class="chips" id="chips"></div>
+</header>
+<main>
+  <aside>
+    <div class="panel">
+      <h2>Scenario</h2>
+      <div class="scen" id="scen">
+        <button data-mode="minimal"><b>1 · Minimal Protection</b><small>plain router, no NAT/filtering — baseline</small></button>
+        <button data-mode="firewall"><b>2 · Firewall-Only</b><small>default-deny, NAT, DMZ port-forward, guest isolation</small></button>
+        <button data-mode="firewall-broken"><b>2b · Rule-conflict exercise</b><small>broken policy: overly-permissive + shadowed rule</small></button>
+        <button data-mode="vpn"><b>3 · Firewall + VPN</b><small>OpenVPN, per-profile access (admin / staff)</small></button>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <h2>Actions <span class="muted small">(current mode)</span></h2>
+      <div class="actions" id="actions">
+        <button data-a="up" class="primary" title="first run: builds images (~10 min)">Build &amp; start</button>
+        <button data-a="verify">Verify</button>
+        <button data-a="pki">Generate PKI</button>
+        <button data-a="nmap">Nmap scan</button>
+        <button data-a="matrix">Test matrix</button>
+        <button data-a="perf">Performance</button>
+        <button data-a="events">Detect events</button>
+        <button data-a="compare">Comparison</button>
+        <button data-a="run-all" class="primary" style="grid-column:1/-1">▶ RUN ALL — 3 modes + comparison</button>
+        <button data-a="rule-conflict">Rule-conflict exercise</button>
+        <button data-a="backup-restore">Backup &amp; restore</button>
+        <button data-a="persistence">Persistence test</button>
+        <button data-a="export">Export configs</button>
+        <button data-a="down" class="danger" style="grid-column:1/-1">Stop lab</button>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <h2>Job console</h2>
+      <div class="jobhead"><span id="jobname">idle</span><span id="jobspin"></span><span class="grow"></span><span id="jobtime"></span><button class="btn" id="cancel" style="padding:2px 8px;display:none">stop</button></div>
+      <div id="console"></div>
+    </div>
+  </aside>
+
+  <section>
+    <div class="tabs" id="tabs">
+      <button data-t="topo" class="active">Topology &amp; live paths</button>
+      <button data-t="fw">Firewall</button>
+      <button data-t="vpn">VPN</button>
+      <button data-t="res">Results &amp; evidence</button>
+      <button data-t="cmp">Comparison</button>
+      <button data-t="ex">Exercises</button>
+    </div>
+
+    <div class="tab active" id="tab-topo">
+      <div class="panel">
+        <div class="row"><h2 style="margin:0">Live path check</h2><span class="muted small">real connection attempts (nc) from each node, compared with the policy of the current mode</span><span class="grow"></span><button class="btn" id="probe">Probe now</button><label class="small"><input type="checkbox" id="autoprobe"> auto (10 s)</label></div>
+        <div class="scroll-x"><svg id="topo" viewBox="0 0 900 430" width="100%"></svg></div>
+        <div class="scroll-x"><table id="probetable"></table></div>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-fw">
+      <div class="grid2">
+        <div class="panel"><div class="row"><h2 style="margin:0">Rule counters</h2><span class="grow"></span><button class="btn" onclick="loadRules()">refresh</button></div><div class="scroll-x"><table id="rules"></table></div></div>
+        <div class="panel"><div class="row"><h2 style="margin:0">Firewall log</h2><select id="since"><option>5 min ago</option><option selected>30 min ago</option><option>2 hours ago</option><option>today</option></select><span class="grow"></span><button class="btn" onclick="loadLog()">refresh</button></div>
+          <div id="alerts"></div><div class="scroll-x"><table id="fwlog"></table></div></div>
+      </div>
+      <div class="panel" style="margin-top:12px"><h2>Running ruleset</h2><pre id="ruleset"></pre></div>
+    </div>
+
+    <div class="tab" id="tab-vpn">
+      <div class="grid2">
+        <div class="panel"><div class="row"><h2 style="margin:0">Connected VPN sessions</h2><span class="grow"></span><button class="btn" onclick="loadVpn()">refresh</button></div><div class="scroll-x"><table id="vpnclients"></table></div>
+          <h2 style="margin-top:14px">Authentication failures (server log)</h2><pre id="vpnfail" style="max-height:200px"></pre></div>
+        <div class="panel"><h2>OpenVPN server log (docker logs ft-firewall)</h2><pre id="vpnlog"></pre></div>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-res">
+      <div class="panel">
+        <div class="row"><h2 style="margin:0">Results for mode</h2><select id="resmode"><option>minimal</option><option>firewall</option><option>vpn</option></select><span class="grow"></span><button class="btn" onclick="loadResults()">refresh</button></div>
+        <div class="kpi" id="kpi"></div>
+        <h2>Ethical Hacking Test Matrix</h2><div class="scroll-x"><table id="matrix"></table></div>
+        <div class="grid2" style="margin-top:12px">
+          <div><h2>Performance (3 runs)</h2><div class="scroll-x"><table id="perf"></table></div><div id="vpnconn" class="scroll-x"></div></div>
+          <div><h2>Security events</h2><pre id="events" style="max-height:260px"></pre></div>
+        </div>
+        <h2 style="margin-top:12px">Nmap (from Kali)</h2><pre id="scan" style="max-height:320px"></pre>
+        <h2 style="margin-top:12px">Evidence files</h2><div class="evlist" id="evlist"></div><pre id="evview" style="margin-top:8px;display:none"></pre>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-cmp">
+      <div class="panel" style="margin-bottom:12px">
+        <div class="row"><h2 style="margin:0">Network access by scenario</h2><span class="muted small">same connection attempts in all three modes, from results/&lt;mode&gt;/matrix.csv</span><span class="grow"></span><button class="btn" onclick="loadAccess()">refresh</button></div>
+        <div class="kpi kpi3" id="accsum"></div>
+        <div class="row small muted" style="gap:14px"><span><span class="pill ok">Allowed</span> connection got through</span><span><span class="pill bad">Blocked</span> dropped by the firewall</span><span><span class="pill warn">attack</span> unauthorized attempt</span><span>✓ matched that mode's policy · ✗ did not</span></div>
+        <div class="scroll-x"><table id="access" class="acc"></table></div>
+      </div>
+      <div class="panel"><div class="row"><h2 style="margin:0">Three-mode security &amp; performance comparison</h2><span class="grow"></span><button class="btn" onclick="loadCmp()">refresh</button></div><div class="scroll-x"><table id="cmp"></table></div><div id="cmpmd" class="muted small" style="margin-top:8px"></div></div>
+    </div>
+
+    <div class="tab" id="tab-ex">
+      <div class="panel"><div class="row"><h2 style="margin:0">Exercise outputs</h2><span class="grow"></span><button class="btn" onclick="loadExtras()">refresh</button></div><div id="extras"></div><pre id="exview" style="margin-top:8px;display:none"></pre></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s), api=(p)=>fetch(p).then(r=>r.json());
+const post=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let state={}, jobOffset=0, lastJob=null;
+
+// ---------- state / job polling ----------
+async function pollState(){
+  try{ state=await api('/api/state?offset='+jobOffset);}catch(e){return;}
+  $('#mode').textContent=state.mode||'lab down';
+  $('#pki').textContent='PKI: '+(state.pki?'ready':'missing'); $('#pki').style.color=state.pki?'#9be3b3':'#ffb3b3';
+  $('#chips').innerHTML=Object.entries(state.containers).map(([n,c])=>`<span class="chip ${c.state==='running'?'running':'down'}" title="${esc(c.status)}">${n}</span>`).join('');
+  document.querySelectorAll('#scen button').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
+  const j=state.job, running=!!(j&&j.running);
+  document.querySelectorAll('#actions button,#scen button').forEach(b=>b.disabled=running);
+  $('#cancel').style.display=running?'':'none'; $('#jobspin').innerHTML=running?'<span class="spin"></span>':'';
+  if(j){
+    if(lastJob!==j.started){ $('#console').textContent=''; jobOffset=0; lastJob=j.started; if(j.offset){ /* first view: fetch full log */ const full=await api('/api/job?offset=0'); j.lines=full.lines; j.offset=full.offset; j.rc=full.rc; j.running=full.running; } }
+    if(j.lines&&j.lines.length){ $('#console').textContent+=j.lines.join('\n')+'\n'; $('#console').scrollTop=1e9; }
+    jobOffset=j.offset;
+    $('#jobname').textContent=(state.actions[j.name]||j.name)+(j.running?' — running':(j.rc===0?' — done ✓':' — exit '+j.rc));
+    $('#jobname').style.color=j.running?'':(j.rc===0?'var(--ok)':'var(--bad)'); $('#jobtime').textContent=j.elapsed+' s';
+    if(!j.running&&j.rc!==null&&!j._refreshed){ j._refreshed=true; refreshVisible(); }
+  }
+  setTimeout(pollState, running?1200:3000);
+}
+async function act(name){ const r=await post('/api/action',{name}); if(r.error) alert(r.error); jobOffset=0; }
+document.querySelectorAll('#actions button').forEach(b=>b.onclick=()=>{ if(b.dataset.a==='down'&&!confirm('Stop and remove all lab containers?'))return; act(b.dataset.a);});
+document.querySelectorAll('#scen button').forEach(b=>b.onclick=()=>act('mode:'+b.dataset.mode));
+$('#cancel').onclick=()=>post('/api/cancel');
+
+// ---------- tabs ----------
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('#tab-'+b.dataset.t).classList.add('active');b.scrollIntoView({block:'nearest',inline:'nearest'});refreshVisible();});
+function refreshVisible(){ const t=document.querySelector('#tabs button.active').dataset.t; ({topo:probe,fw:()=>{loadRules();loadLog();},vpn:loadVpn,res:loadResults,cmp:()=>{loadAccess();loadCmp();},ex:loadExtras})[t](); }
+
+// ---------- topology ----------
+const NODES={firewall:[450,215,'Firewall / VPN gateway','203.0.113.1 · 10.10.0.1 · 10.20.0.1 · 10.30.0.1'],
+  internal:[130,70,'Trusted / Internal','internal.lab 10.10.0.10  :22 :80 :8080 :5201'], guest:[130,360,'Guest / Untrusted','guest.lab 10.20.0.10'],
+  dmz:[770,360,'DMZ','dmz.lab 10.30.0.10  :80 (:8080)'], kali:[770,70,'External / Test — Kali','203.0.113.50  (+ sim. web :8000)'], vpnclient:[780,215,'Remote VPN client','203.0.113.60 → tun 10.40.0.x']};
+const ZONE={internal:'#2d8f5a',guest:'#c77d1e',dmz:'#7a5bd6',kali:'#c74a4a',vpnclient:'#3d84c6',firewall:'#4ea1ff'};
+function drawTopo(probes,vpn){
+  const s=$('#topo'); let h=`<defs>${['ok','bad'].map(k=>`<marker id="m-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${k==='ok'?'#2ecc71':'#ff5c5c'}"/></marker>`).join('')}</defs>`;
+  const F=NODES.firewall, n=(probes||[]).length;
+  // every path is drawn THROUGH the firewall (src -> gateway -> dst), each probe on its own lane so lines/labels do not overlap
+  (probes||[]).forEach((p,i)=>{
+    const a=NODES[p.src],b=NODES[p.dst]; if(!a||!b)return;
+    const lane=(i-(n-1)/2)*11, col=p.actual==='Allowed'?'#2ecc71':'#ff5c5c', dash=p.actual==='Allowed'?'':'6 4';
+    const seg=(P,Q,arrow)=>{const dx=Q[0]-P[0],dy=Q[1]-P[1],L=Math.hypot(dx,dy),nx=-dy/L*lane,ny=dx/L*lane;
+      return {d:`M${P[0]+nx},${P[1]+ny} L${Q[0]+nx},${Q[1]+ny}`,mid:[P[0]+dx*0.42+nx,P[1]+dy*0.42+ny]};};
+    const s1=seg(a,F), s2=seg(F,b);
+    h+=`<path d="${s1.d}" fill="none" stroke="${col}" stroke-width="1.8" stroke-dasharray="${dash}" opacity=".85"/>`;
+    h+=`<path d="${s2.d}" fill="none" stroke="${col}" stroke-width="1.8" stroke-dasharray="${dash}" marker-end="url(#m-${p.actual==='Allowed'?'ok':'bad'})" opacity=".85"/>`;
+    h+=`<text x="${s1.mid[0]}" y="${s1.mid[1]-4}" text-anchor="middle" style="font-size:10px;fill:${col};paint-order:stroke;stroke:#0f141b;stroke-width:3px">${esc(p.id)} ${p.ok?'✓':'✗ UNEXPECTED'}</text>`;
+  });
+  Object.entries(NODES).forEach(([k,[x,y,t,sub]])=>{ const w=k==='firewall'?230:200; h+=`<g><rect x="${x-w/2}" y="${y-26}" width="${w}" height="52" rx="9" fill="#1c2531" stroke="${ZONE[k]}" stroke-width="2"/><text x="${x}" y="${y-6}" text-anchor="middle" font-weight="600">${esc(t)}</text><text x="${x}" y="${y+12}" text-anchor="middle" style="font-size:9.5px;fill:#8b98a8">${esc(sub)}</text></g>`; });
+  if(vpn) h+=`<text x="450" y="412" text-anchor="middle" style="fill:${vpn.tunnel?'#2ecc71':'#8b98a8'}">VPN tunnel: ${vpn.tunnel?'UP '+esc(vpn.addr||''):'down (established by the VPN tests)'}</text>`;
+  if(!n) h+=`<text x="450" y="412" text-anchor="middle" style="fill:#8b98a8">no probe data - lab down or press "Probe now"</text>`;
+  s.innerHTML=h;
+}
+async function probe(){
+  $('#probe').disabled=true; $('#probe').textContent='probing…';
+  try{ const r=await api('/api/probe'); if(r.error){$('#probetable').innerHTML=`<tr><td class="bad">${esc(r.error)}</td></tr>`;drawTopo([]);return;}
+    drawTopo(r.probes,r.vpn);
+    $('#probetable').innerHTML='<tr><th>Path</th><th>Target</th><th>Expected ('+esc(r.mode)+')</th><th>Actual</th><th></th></tr>'+r.probes.map(p=>`<tr><td>${esc(p.id)}</td><td class="mono">${esc(p.target)}</td><td>${p.expected}</td><td class="${p.actual==='Allowed'?'ok':'bad'}">${p.actual}</td><td>${p.ok?'<span class="pill ok">as policy</span>':'<span class="pill bad">UNEXPECTED</span>'}</td></tr>`).join('');
+  } finally { $('#probe').disabled=false; $('#probe').textContent='Probe now'; }
+}
+$('#probe').onclick=probe; setInterval(()=>{ if($('#autoprobe').checked&&$('#tab-topo').classList.contains('active')) probe(); },10000);
+
+// ---------- firewall ----------
+async function loadRules(){ const r=await api('/api/ruleset'); $('#ruleset').textContent=r.text||'(firewall not running)';
+  $('#rules').innerHTML='<tr><th>Rule</th><th>Verdict</th><th>Packets</th><th>Bytes</th></tr>'+r.rules.map(x=>`<tr><td class="mono">${esc(x.rule)}</td><td class="${x.verdict==='drop'?'bad':x.verdict==='accept'?'ok':''}">${x.verdict}</td><td class="mono">${x.packets}</td><td class="mono">${x.bytes}</td></tr>`).join(''); }
+async function loadLog(){ const r=await api('/api/fwlog?since='+encodeURIComponent($('#since').value));
+  $('#alerts').innerHTML=(r.alerts.length?r.alerts.map(a=>`<span class="pill bad">ALERT ≥5 denied from ${esc(a.src)} (${a.denied})</span> `).join(''):'<span class="pill ok">no repeated-denial alerts in window</span>')+(!r.readable?' <span class="pill warn">kernel log not readable — run host-setup.sh and re-login</span>':'');
+  $('#fwlog').innerHTML='<tr><th>Time</th><th>Action</th><th>Rule</th><th>In→Out</th><th>Source</th><th>Destination</th><th>Proto/port</th></tr>'+r.rows.slice().reverse().slice(0,120).map(x=>`<tr><td class="mono">${x.time}</td><td class="${x.action==='DROP'?'bad':'ok'}">${x.action}</td><td class="mono">${esc(x.rule)}</td><td class="mono">${esc(x.in)}→${esc(x.out)}</td><td class="mono">${esc(x.src)}</td><td class="mono">${esc(x.dst)}</td><td class="mono">${esc(x.proto)}/${esc(x.dpt)}</td></tr>`).join(''); }
+
+// ---------- vpn ----------
+async function loadVpn(){ const r=await api('/api/vpn');
+  $('#vpnclients').innerHTML='<tr><th>Profile</th><th>Real address</th><th>Tunnel IP</th><th>RX</th><th>TX</th><th>Since</th></tr>'+(r.clients.length?r.clients.map(c=>`<tr><td>${esc(c.name)}</td><td class="mono">${esc(c.real)}</td><td class="mono">${esc(c.vip)}</td><td class="mono">${c.rx}</td><td class="mono">${c.tx}</td><td class="mono">${esc(c.since)}</td></tr>`).join(''):'<tr><td colspan=6 class="muted">no connected clients (or not in vpn mode)</td></tr>');
+  $('#vpnfail').textContent=r.auth_failures.join('\n')||'(none in the last 80 log lines)'; $('#vpnlog').textContent=r.log.join('\n'); }
+
+// ---------- results ----------
+function tbl(rows,cols,cls){ if(!rows||!rows.length) return '<tr><td class="muted">no data yet</td></tr>'; cols=cols||Object.keys(rows[0]);
+  return '<tr>'+cols.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>'+rows.map(r=>'<tr>'+cols.map(c=>`<td class="${cls?cls(c,r[c],r):''}">${esc(r[c])}</td>`).join('')+'</tr>').join(''); }
+async function loadResults(){ const m=$('#resmode').value; const r=await api('/api/results?mode='+m);
+  const mx=r.matrix||[], pass=mx.filter(x=>x['Pass/Fail']==='PASS').length, blocked=mx.filter(x=>x.Actual==='Blocked').length, hosts=(r.scan||'').match(/(\d+) hosts? up/), ports=((r.scan||'').match(/^\d+\/tcp\s+open/gm)||[]).length;
+  $('#kpi').innerHTML=`<div>Matrix PASS<b>${pass}/${mx.length}</b></div><div>Blocked attempts<b>${blocked}</b></div><div>Reachable hosts (Nmap)<b>${hosts?hosts[1]:'–'}</b></div><div>Open TCP ports<b>${r.scan?ports:'–'}</b></div>`;
+  $('#matrix').innerHTML=tbl(mx,['Test ID','Class','Source','Destination','Protocol/Port/Service','Expected','Actual','Pass/Fail','Evidence'],(c,v,r)=>c==='Pass/Fail'?(v==='PASS'?'ok':'bad'):c==='Actual'?((r.Class==='auth'?(v==='Allowed'||v==='Encrypted'):(v==='Blocked'||v==='Encrypted'))?'ok':'bad'):'');
+  $('#perf').innerHTML=tbl(r.perf,['path','run','latency_avg_ms','throughput_mbps','note']);
+  $('#vpnconn').innerHTML=r.vpn_connect?'<h2 style="margin-top:10px">VPN connection time</h2><table>'+tbl(r.vpn_connect)+'</table>':'';
+  $('#events').textContent=r.events_txt||'no data yet'; $('#scan').textContent=(r.scan||'no data yet')+(r.scan_udp?'\n\n'+r.scan_udp:'');
+  $('#evlist').innerHTML=(r.evidence||[]).map(f=>`<button class="btn" onclick="viewEv('${m}/evidence/${esc(f)}')">${esc(f)}</button>`).join('')||'<span class="muted">none</span>'; $('#evview').style.display='none'; }
+async function viewEv(f){ const r=await api('/api/evidence?file='+encodeURIComponent(f)); $('#evview').style.display=''; $('#evview').textContent=(r.kind==='pcap'?`# ${f}  (${r.packets} packets, tcpdump -nn -r)\n`:'')+(r.text||r.error||''); }
+$('#resmode').onchange=loadResults;
+
+// ---------- comparison / extras ----------
+async function loadCmp(){ const r=await api('/api/comparison'); if(!r.table){$('#cmp').innerHTML='<tr><td class="muted">run the three modes then "Comparison" (or RUN ALL)</td></tr>';return;}
+  $('#cmp').innerHTML=tbl(r.table,null,(c,v)=>/reduction/.test(v)?'':/^\d+(\.\d+)?%$/.test(v)?'ok':''); $('#cmpmd').textContent='Also written to results/comparison.md for the report.'; }
+
+// access matrix: every test ID side by side across the three modes (Allowed / Blocked per scenario)
+const ACC_MODES=[['minimal','Minimal Protection','Minimal'],['firewall','Firewall-Only','Firewall'],['vpn','Firewall + VPN','FW + VPN']];
+const ACC_GROUPS={T:'Zone-to-zone access',V:'Remote access through the VPN (only exists in Firewall + VPN)',P:'Is remote traffic readable on the External side?'};
+async function loadAccess(){
+  const res=await Promise.all(ACC_MODES.map(([m])=>api('/api/results?mode='+m).catch(()=>({}))));
+  const rows={};
+  res.forEach((r,i)=>(r.matrix||[]).forEach(x=>{ const id=x['Test ID']; (rows[id]=rows[id]||{id,first:x,cells:{}}).cells[ACC_MODES[i][0]]=x; }));
+  const gk=id=>id==='V11'?'P':id[0];   // V11 (encrypted) sits next to P01 (plaintext): same question, answered per mode
+  const ids=Object.keys(rows).sort((a,b)=>(('TVP'.indexOf(gk(a))-'TVP'.indexOf(gk(b)))||(parseInt(a.slice(1))-parseInt(b.slice(1)))));
+  if(!ids.length){ $('#accsum').innerHTML=''; $('#access').innerHTML='<tr><td class="muted">no matrix results yet — run RUN ALL</td></tr>'; return; }
+  const got=v=>v==='Allowed'||v==='Plaintext';   // Plaintext = the attacker can read the traffic
+  $('#accsum').innerHTML=ACC_MODES.map(([m,label],i)=>{ const mx=res[i].matrix||[];
+    if(!mx.length) return `<div>${label}<b>–</b><small>not run yet</small></div>`;
+    const allowed=mx.filter(x=>x.Actual==='Allowed').length, blocked=mx.filter(x=>x.Actual==='Blocked').length, leaked=mx.filter(x=>x.Class==='unauth'&&got(x.Actual)).length;
+    return `<div>${label}<b style="color:var(--${leaked?'bad':'ok'})">${leaked} attack${leaked===1?'':'s'} got through</b><small>${allowed} allowed · ${blocked} blocked · ${mx.length} tests</small></div>`; }).join('');
+  const cell=(x,id)=>{ if(!x) return id[0]==='V'?'<td class="cell" title="this scenario has no VPN gateway"><span class="pill na">no VPN</span></td>':'<td class="cell" title="not part of this scenario\'s test set"><span class="pill na">n/a</span></td>';
+    const v=x.Actual, k=v==='Allowed'||v==='Encrypted'?'ok':v==='Blocked'?'bad':'warn', pass=x['Pass/Fail']==='PASS';
+    return `<td class="cell" title="${esc(x.Destination)} · expected ${esc(x.Expected)}"><span class="pill ${k}">${esc(v)}</span> <span class="${pass?'muted':'bad'}">${pass?'✓':'✗'}</span></td>`; };
+  let h='<tr><th>Connection attempt</th>'+ACC_MODES.map(([,l,s])=>`<th class="cell"><span class="lbl-long">${l}</span><span class="lbl-short">${s}</span></th>`).join('')+'</tr>', grp='';
+  ids.forEach(id=>{ const r=rows[id], f=r.first;
+    if(gk(id)!==grp){ grp=gk(id); h+=`<tr class="grp"><td colspan="4">${esc(ACC_GROUPS[grp]||grp)}</td></tr>`; }
+    const dst=(r.cells.vpn||r.cells.firewall||f).Destination;
+    h+=`<tr><td><b class="mono">${esc(id)}</b> ${f.Class==='unauth'?'<span class="pill warn">attack</span>':''}<br>${esc(f.Source.replace(/;/g,','))} → ${esc(f['Protocol/Port/Service'])}<br><span class="mono muted small">${esc(dst)}</span></td>${ACC_MODES.map(([m])=>cell(r.cells[m],id)).join('')}</tr>`; });
+  $('#access').innerHTML=h;
+}
+async function loadExtras(){ const r=await api('/api/extras'); $('#extras').innerHTML=Object.entries(r).map(([k,v])=>`<h2 style="margin-top:8px">${k}</h2><div class="evlist">${v.files.length?v.files.map(f=>`<button class="btn" onclick="viewEx('${k}/${esc(f)}')">${esc(f)}</button>`).join(''):'<span class="muted small">not run yet</span>'}</div>`).join(''); $('#exview').style.display='none'; }
+async function viewEx(f){ const r=await api('/api/evidence?file='+encodeURIComponent(f)); $('#exview').style.display=''; $('#exview').textContent=r.text||r.error||''; }
+
+drawTopo([]); pollState(); setTimeout(probe,800);
+</script>
+</body>
+</html>

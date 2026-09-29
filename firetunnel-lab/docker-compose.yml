@@ -1,0 +1,127 @@
+# FireTunnel lab - Docker Compose topology
+# 4 security zones (bridges): wan (External/Test), lan (Trusted/Internal), guest, dmz
+# The firewall container is the ONLY path between zones. Every other container
+# has its default route pointed at the firewall's IP on its own zone.
+name: firetunnel
+
+x-lab-hosts: &lab_hosts
+  - "public.lab:203.0.113.1"
+  - "firewall.lab:10.10.0.1"
+  - "internal.lab:10.10.0.10"
+  - "guest.lab:10.20.0.10"
+  - "dmz.lab:10.30.0.10"
+  - "kali.lab:203.0.113.50"
+  - "vpnclient.lab:203.0.113.60"
+
+x-node: &node_common
+  build: ./images/labnode
+  image: firetunnel/labnode:1.0
+  cap_add: [NET_ADMIN, NET_RAW]
+  extra_hosts: *lab_hosts
+  restart: unless-stopped
+  depends_on: [firewall]
+
+services:
+  firewall:
+    build: ./images/firewall
+    image: firetunnel/firewall:1.0
+    container_name: ft-firewall
+    hostname: firewall
+    cap_add: [NET_ADMIN, NET_RAW]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    environment:
+      MODE: "${MODE:-minimal}"        # minimal | firewall | firewall-broken | vpn
+    volumes:
+      - ./firewall/nft:/opt/lab/nft:ro
+      - ./vpn:/opt/lab/vpn
+    extra_hosts: *lab_hosts
+    restart: unless-stopped
+    networks:
+      wan:   { ipv4_address: 203.0.113.1 }
+      lan:   { ipv4_address: 10.10.0.1 }
+      guest: { ipv4_address: 10.20.0.1 }
+      dmz:   { ipv4_address: 10.30.0.1 }
+
+  internal:
+    <<: *node_common
+    container_name: ft-internal
+    hostname: internal
+    environment: { ROLE: internal, GW: 10.10.0.1 }
+    networks:
+      lan: { ipv4_address: 10.10.0.10 }
+
+  guest:
+    <<: *node_common
+    container_name: ft-guest
+    hostname: guest
+    environment: { ROLE: guest, GW: 10.20.0.1 }
+    networks:
+      guest: { ipv4_address: 10.20.0.10 }
+
+  dmz:
+    <<: *node_common
+    container_name: ft-dmz
+    hostname: dmz
+    environment: { ROLE: dmz, GW: 10.30.0.1 }
+    networks:
+      dmz: { ipv4_address: 10.30.0.10 }
+
+  vpnclient:
+    <<: *node_common
+    container_name: ft-vpnclient
+    hostname: vpnclient
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    environment: { ROLE: vpnclient, GW: 203.0.113.1 }
+    volumes:
+      - ./vpn/clients:/opt/lab/vpn/clients:ro
+    networks:
+      wan: { ipv4_address: 203.0.113.60 }
+
+  kali:
+    build: ./images/kali
+    image: firetunnel/kali:1.0
+    container_name: ft-kali
+    hostname: kali
+    cap_add: [NET_ADMIN, NET_RAW]
+    environment: { GW: 203.0.113.1 }
+    extra_hosts: *lab_hosts
+    restart: unless-stopped
+    depends_on: [firewall]
+    networks:
+      wan: { ipv4_address: 203.0.113.50 }
+
+networks:
+  wan:
+    name: ft_wan
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: ft-wan
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config: [{ subnet: 203.0.113.0/24, gateway: 203.0.113.254 }]
+  lan:
+    name: ft_lan
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: ft-lan
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config: [{ subnet: 10.10.0.0/24, gateway: 10.10.0.254 }]
+  guest:
+    name: ft_guest
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: ft-guest
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config: [{ subnet: 10.20.0.0/24, gateway: 10.20.0.254 }]
+  dmz:
+    name: ft_dmz
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: ft-dmz
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config: [{ subnet: 10.30.0.0/24, gateway: 10.30.0.254 }]

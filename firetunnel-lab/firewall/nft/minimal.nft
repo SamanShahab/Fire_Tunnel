@@ -1,0 +1,25 @@
+#!/usr/sbin/nft -f
+# MODE: minimal  (Scenario 1 - Minimal Protection / baseline)
+# Plain router. No NAT, no filtering, everything forwarded. Counters only, so the
+# monitoring step can still show traffic per zone.
+include "/run/lab/ifaces.nft"
+flush ruleset
+
+table inet fw {
+    chain input {
+        type filter hook input priority filter; policy accept;
+        counter comment "minimal-input-all"
+    }
+    chain forward {
+        type filter hook forward priority filter; policy accept;
+        ct state established,related counter accept comment "established"
+        iifname $GUEST counter comment "guest-initiated"
+        iifname $WAN   counter comment "external-initiated"
+        iifname $DMZ   counter comment "dmz-initiated"
+        iifname $LAN   counter comment "lan-initiated"
+        counter accept comment "minimal-allow-all"
+    }
+    chain output {
+        type filter hook output priority filter; policy accept;
+    }
+}
